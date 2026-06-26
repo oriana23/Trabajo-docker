@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intern Race — On the track</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #0f172a;
+      --border: rgba(148,163,184,.1);
+      --accent: #6366f1;
+      --cyan: #22d3ee;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #fbbf24;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --dim: #64748b;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: rgba(30,41,59,.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hdr-player { display: flex; align-items: center; gap: 8px; }
+    .hdr-player span { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .hdr-player small { color: var(--muted); font-size: .8rem; }
+
+    .hdr-lives { display: flex; gap: 4px; font-size: 1.4rem; }
+    .life { transition: transform .2s; }
+    .life.lost { filter: grayscale(1); opacity: .3; transform: scale(.8); }
+
+    .hdr-score { text-align: right; }
+    .hdr-score .score-val { font-size: 1.3rem; font-weight: 800; color: var(--cyan); }
+    .hdr-score small { display: block; color: var(--dim); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+
+    /* ── MAIN ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 32px;
+      gap: 20px;
+      max-width: 760px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── TRACK ── */
+    .track-wrap { width: 100%; }
+    .track-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 6px;
+    }
+
+    .track {
+      position: relative;
+      width: 100%;
+      height: 72px;
+      background: #1a2332;
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,.06);
+      overflow: hidden;
+    }
+
+    /* road texture lines */
+    .track::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent 0px, transparent 28px,
+        rgba(255,255,255,.025) 28px, rgba(255,255,255,.025) 30px
+      );
+    }
+
+    /* center dashes */
+    .track::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0; right: 0;
+      height: 3px;
+      transform: translateY(-50%);
+      background: repeating-linear-gradient(
+        90deg,
+        #fbbf24 0px, #fbbf24 28px,
+        transparent 28px, transparent 52px
+      );
+      opacity: .5;
+    }
+
+    .track-progress {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      background: linear-gradient(90deg, rgba(99,102,241,.2), rgba(34,211,238,.15));
+      transition: width .5s cubic-bezier(.34,1.56,.64,1);
+      width: 0%;
+    }
+
+    .start-flag, .finish-flag {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.6rem;
+      z-index: 3;
+    }
+    .start-flag  { left: 6px; }
+    .finish-flag { right: 6px; }
+
+    #racer {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      transform: translate(-50%, -60%);
+      font-size: 2rem;
+      z-index: 4;
+      transition: left .5s cubic-bezier(.34,1.56,.64,1);
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.6));
+    }
+    #racer.bump {
+      animation: bump .35s ease;
+    }
+    @keyframes bump {
+      0%   { transform: translate(-50%,-60%) scale(1); }
+      40%  { transform: translate(-50%,-60%) scale(1.4) rotate(-10deg); }
+      100% { transform: translate(-50%,-60%) scale(1); }
+    }
+    #racer.shake {
+      animation: shake .4s ease;
+    }
+    @keyframes shake {
+      0%,100% { transform: translate(-50%,-60%); }
+      20%      { transform: translate(calc(-50% - 8px),-60%); }
+      40%      { transform: translate(calc(-50% + 8px),-60%); }
+      60%      { transform: translate(calc(-50% - 6px),-60%); }
+      80%      { transform: translate(calc(-50% + 4px),-60%); }
+    }
+
+    .progress-pct {
+      text-align: center;
+      margin-top: 6px;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    .progress-pct strong { color: var(--cyan); }
+
+    /* ── TIMER BAR ── */
+    .timer-wrap { width: 100%; }
+    .timer-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 5px;
+    }
+    .timer-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,.06);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    #timer-bar {
+      height: 100%;
+      width: 100%;
+      border-radius: 99px;
+      background: var(--green);
+      transition: width .95s linear, background .3s;
+    }
+
+    /* ── QUESTION CARD ── */
+    .q-card {
+      width: 100%;
+      background: var(--surface);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 28px 28px 24px;
+      transition: opacity .2s;
+    }
+    .q-card.flash-ok  { animation: flashOk  .4s ease; }
+    .q-card.flash-err { animation: flashErr .4s ease; }
+
+    @keyframes flashOk  {
+      0%,100% { box-shadow: none; }
+      50%      { box-shadow: 0 0 0 3px rgba(34,197,94,.5); }
+    }
+    @keyframes flashErr {
+      0%,100% { box-shadow: none; }
+      50%      { box-shadow: 0 0 0 3px rgba(239,68,68,.5); }
+    }
+
+    .q-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .q-badge {
+      background: rgba(99,102,241,.15);
+      border: 1px solid rgba(99,102,241,.3);
+      color: #818cf8;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .q-counter { color: var(--dim); font-size: .8rem; }
+
+    .q-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      line-height: 1.55;
+      color: var(--text);
+      margin-bottom: 22px;
+    }
+    .q-text code {
+      background: rgba(99,102,241,.15);
+      color: #a5b4fc;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: .95em;
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .opt {
+      background: rgba(15,23,42,.7);
+      border: 2px solid rgba(148,163,184,.1);
+      border-radius: 12px;
+      padding: 13px 16px;
+      text-align: left;
+      color: var(--text);
+      font-size: .9rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .1s;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.4;
+    }
+    .opt:hover:not(:disabled) {
+      border-color: rgba(99,102,241,.5);
+      background: rgba(99,102,241,.08);
+      transform: translateY(-1px);
+    }
+    .opt:active:not(:disabled) { transform: translateY(0); }
+
+    .opt .letter {
+      background: rgba(99,102,241,.2);
+      color: #818cf8;
+      font-weight: 800;
+      font-size: .75rem;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .opt.correct {
+      border-color: var(--green) !important;
+      background: rgba(34,197,94,.1) !important;
+    }
+    .opt.correct .letter { background: rgba(34,197,94,.3); color: var(--green); }
+
+    .opt.wrong {
+      border-color: var(--red) !important;
+      background: rgba(239,68,68,.1) !important;
+    }
+    .opt.wrong .letter { background: rgba(239,68,68,.3); color: var(--red); }
+
+    .opt:disabled { cursor: not-allowed; opacity: .7; }
+
+    /* ── FEEDBACK ── */
+    .feedback {
+      font-size: .85rem;
+      text-align: center;
+      min-height: 22px;
+      margin-top: 16px;
+      font-weight: 600;
+    }
+    .feedback.ok  { color: var(--green); }
+    .feedback.err { color: var(--red); }
+
+    /* ── OVERLAY SCREENS ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.85);
+      backdrop-filter: blur(6px);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.show { display: flex; }
+
+    .overlay-card {
+      background: var(--surface);
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      padding: 48px 44px;
+      text-align: center;
+      max-width: 440px;
+      width: 90%;
+      box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    }
+
+    .overlay-icon { font-size: 5rem; display: block; margin-bottom: 16px; }
+    .overlay-title { font-size: 2rem; font-weight: 900; margin-bottom: 8px; }
+    .overlay-sub   { color: var(--muted); font-size: .95rem; margin-bottom: 28px; line-height: 1.6; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .stat-box {
+      background: rgba(15,23,42,.6);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .stat-box .val { font-size: 1.4rem; font-weight: 800; color: var(--cyan); display: block; }
+    .stat-box .lbl { font-size: .7rem; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+
+    .btn-action {
+      padding: 15px 32px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      margin: 0 6px;
+    }
+    .btn-action:hover  { opacity: .88; transform: translateY(-1px); }
+    .btn-action:active { transform: translateY(0); }
+
+    .btn-primary  { background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff; }
+    .btn-ghost    { background: rgba(148,163,184,.1); color: var(--muted); }
+
+    /* ── LEADERBOARD ── */
+    .leaderboard {
+      margin-top: 20px;
+      margin-bottom: 24px;
+    }
+    .lb-title {
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .lb-podium {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .lb-place {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .lb-medal { font-size: 1.6rem; }
+    .lb-name {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+      word-break: break-word;
+    }
+    .lb-pts {
+      font-size: .82rem;
+      font-weight: 800;
+      color: var(--cyan);
+    }
+    .lb-bar {
+      width: 100%;
+      border-radius: 8px 8px 0 0;
+      min-height: 32px;
+    }
+    .lb-place:nth-child(1) .lb-bar { background: rgba(148,163,184,.15); height: 48px; }
+    .lb-place:nth-child(2) .lb-bar { background: rgba(251,191,36,.15);  height: 72px; border: 1px solid rgba(251,191,36,.3); }
+    .lb-place:nth-child(3) .lb-bar { background: rgba(148,163,184,.1);  height: 36px; }
+    .lb-place.me .lb-bar { border: 1px solid rgba(99,102,241,.5) !important; background: rgba(99,102,241,.2) !important; }
+    .lb-msg { color: var(--dim); font-size: .8rem; text-align: center; padding: 8px; }
+
+    /* ── CONFETTI ── */
+    .confetti-wrap { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 49; }
+    .confetti-piece {
+      position: absolute;
+      width: 8px; height: 12px;
+      border-radius: 2px;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: .3; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="hdr-player">
+      <span>🧑‍💻 <span id="hdr-name">Intern</span></span>
+    </div>
+    <div class="hdr-lives" id="lives-row">
+      <span class="life" id="life-1">❤️</span>
+      <span class="life" id="life-2">❤️</span>
+      <span class="life" id="life-3">❤️</span>
+    </div>
+    <div class="hdr-score">
+      <div class="score-val" id="score-val">0</div>
+      <small>Score</small>
+    </div>
+  </header>
+
+  <!-- MAIN GAME -->
+  <main>
+
+    <!-- TRACK -->
+    <div class="track-wrap">
+      <div class="track-labels">
+        <span>Track</span>
+        <span id="q-progress-lbl">Question 1 / 10</span>
+      </div>
+      <div class="track">
+        <div class="track-progress" id="track-fill"></div>
+        <span class="start-flag">🚩</span>
+        <span class="finish-flag">🏁</span>
+        <div id="racer">🏎️</div>
+      </div>
+      <p class="progress-pct">Progress: <strong id="pct-label">0%</strong></p>
+    </div>
+
+    <!-- TIMER -->
+    <div class="timer-wrap">
+      <div class="timer-label">
+        <span>Time</span>
+        <span id="timer-text">15s</span>
+      </div>
+      <div class="timer-bar-bg">
+        <div id="timer-bar"></div>
+      </div>
+    </div>
+
+    <!-- QUESTION -->
+    <div class="q-card" id="q-card">
+      <div class="q-meta">
+        <span class="q-badge">Docker</span>
+        <span class="q-counter" id="q-counter">1 / 10</span>
+      </div>
+      <div class="q-text" id="q-text">Loading...</div>
+      <div class="options" id="options"></div>
+      <div class="feedback" id="feedback"></div>
+    </div>
+
+  </main>
+
+  <!-- WIN OVERLAY -->
+  <div class="overlay" id="win-screen">
+    <div class="confetti-wrap" id="confetti"></div>
+    <div class="overlay-card">
+      <span class="overlay-icon">🏆</span>
+      <h2 class="overlay-title" style="color:#fbbf24">You crossed the finish line!</h2>
+      <p class="overlay-sub">You completed the Docker Challenge, <strong id="win-name"></strong>. Great work!</p>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <span class="val" id="win-score">0</span>
+          <span class="lbl">Score</span>
+        </div>
+        <div class="stat-box">
+          <span class="val" id="win-correct">0/10</span>
+          <span class="lbl">Correct</span>
+        </div>
+        <div class="stat-box">
+          <span class="val" id="win-lives">❤️❤️❤️</span>
+          <span class="lbl">Lives left</span>
+        </div>
+        <div class="stat-box">
+          <span class="val" id="win-time">0s</span>
+          <span class="lbl">Time saved</span>
+        </div>
+      </div>
+      <div class="leaderboard">
+        <p class="lb-title">🏆 Top Scores</p>
+        <div id="scores-list"><p class="lb-msg">Saving score...</p></div>
+      </div>
+      <button class="btn-action btn-primary" onclick="restart()">Play again 🔄</button>
+      <button class="btn-action btn-ghost" onclick="goHome()">Home</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER OVERLAY -->
+  <div class="overlay" id="gameover-screen">
+    <div class="overlay-card">
+      <span class="overlay-icon">💥</span>
+      <h2 class="overlay-title" style="color:#ef4444">Out of lives!</h2>
+      <p class="overlay-sub">You made it to question <strong id="go-qnum"></strong> of 10.<br>Give it another shot!</p>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <span class="val" id="go-score">0</span>
+          <span class="lbl">Score</span>
+        </div>
+        <div class="stat-box">
+          <span class="val" id="go-correct">0</span>
+          <span class="lbl">Correct</span>
+        </div>
+      </div>
+      <button class="btn-action btn-primary" onclick="restart()">Try again 🔄</button>
+      <button class="btn-action btn-ghost" onclick="goHome()">Home</button>
+    </div>
+  </div>
+
+  <script>
+    /* ── QUESTIONS ── */
+    const QUESTIONS = [
+      {
+        q: 'You run <code>docker pull nginx</code> in your terminal. What does this command do?',
+        opts: [
+          'Downloads the "nginx" image from Docker Hub to your local machine',
+          'Creates and starts a new Nginx container',
+          'Updates Nginx inside an already running container',
+          'Pushes your local image to Docker Hub'
+        ],
+        correct: 0
+      },
+      {
+        q: 'What is the name of the file where you write the instructions to build a Docker image?',
+        opts: [
+          'Dockerfile',
+          'docker-compose.yml',
+          'build.config',
+          '.dockerenv'
+        ],
+        correct: 0
+      },
+      {
+        q: 'In a Dockerfile, the first instruction is almost always <code>FROM</code>. What does it do?',
+        opts: [
+          'Defines the base image that the new image is built on top of',
+          'Specifies the author of the Dockerfile',
+          'Copies files from the host into the container',
+          'Exposes a port from the container'
+        ],
+        correct: 0
+      },
+      {
+        q: 'You run <code>docker build -t my-app .</code>. What does the <code>-t my-app</code> flag do?',
+        opts: [
+          'Assigns the name (tag) "my-app" to the built image',
+          'Automatically creates a container named "my-app"',
+          'Sets a build timeout of my-app seconds',
+          'Connects the image to a network called my-app'
+        ],
+        correct: 0
+      },
+      {
+        q: 'In <code>docker run -p 8080:80 nginx</code>, what does <code>-p 8080:80</code> do?',
+        opts: [
+          'Maps port 80 of the container to port 8080 on your machine',
+          'Limits bandwidth to 8080 kbps with a cap of 80 connections',
+          'Maps port 8080 of the container to port 80 on the host',
+          'Publicly exposes port 80 bypassing the host'
+        ],
+        correct: 0
+      },
+      {
+        q: 'What does <code>docker ps</code> show?',
+        opts: [
+          'The containers currently running on the system',
+          'All images downloaded locally',
+          'The main Docker Engine process',
+          'Logs from the last container that ran'
+        ],
+        correct: 0
+      },
+      {
+        q: 'You use <code>COPY index.html /usr/share/nginx/html/</code> in your Dockerfile. What does that line do?',
+        opts: [
+          'Copies index.html from the build context into the image',
+          'Downloads index.html from the internet into the container',
+          'Creates a symlink to index.html at that path',
+          'Compresses index.html and stores it in the image'
+        ],
+        correct: 0
+      },
+      {
+        q: 'You run <code>docker run -d nginx</code>. What does the <code>-d</code> flag mean?',
+        opts: [
+          'Runs the container in the background (detached mode), freeing the terminal',
+          'Enables debug mode with verbose logs',
+          'Disables networking for the container',
+          'Automatically deletes the container when it stops'
+        ],
+        correct: 0
+      },
+      {
+        q: 'What is the difference between a Docker <strong>image</strong> and a <strong>container</strong>?',
+        opts: [
+          'An image is the static template; a container is a running instance of it',
+          'They are the same thing — the name just changes per operating system',
+          'A container is read-only; an image can be modified',
+          'An image runs in the cloud; a container runs locally'
+        ],
+        correct: 0
+      },
+      {
+        q: 'You want to stop and remove the container named "my-app". What is the correct sequence?',
+        opts: [
+          '<code>docker stop my-app</code> → <code>docker rm my-app</code>',
+          '<code>docker rm my-app</code> → <code>docker stop my-app</code>',
+          'Just <code>docker kill my-app</code> does both at once',
+          '<code>docker delete my-app --force</code>'
+        ],
+        correct: 0
+      }
+    ];
+
+    /* ── STATE ── */
+    const TOTAL_Q  = QUESTIONS.length;
+    const TIME_PER_Q = 15;
+
+    const player = localStorage.getItem('racePlayer') || 'Intern';
+    let lives    = 3;
+    let score    = 0;
+    let correct  = 0;
+    let progress = 0;
+    let qIndex   = 0;
+    let timeLeft = TIME_PER_Q;
+    let timerId  = null;
+    let answered = false;
+    let timeSaved = 0;
+    let currentCorrect = 0;
+
+    /* ── INIT ── */
+    document.getElementById('hdr-name').textContent = player;
+    loadQuestion();
+
+    /* ── QUESTION ── */
+    function loadQuestion() {
+      if (qIndex >= TOTAL_Q) { showWin(); return; }
+      answered = false;
+
+      const q = QUESTIONS[qIndex];
+
+      document.getElementById('q-counter').textContent = `${qIndex + 1} / ${TOTAL_Q}`;
+      document.getElementById('q-progress-lbl').textContent = `Question ${qIndex + 1} / ${TOTAL_Q}`;
+      document.getElementById('feedback').textContent = '';
+      document.getElementById('feedback').className = 'feedback';
+
+      // render question (supports basic HTML tags like <code> and <strong>)
+      document.getElementById('q-text').innerHTML = q.q;
+
+      // shuffle options
+      const indices = [0, 1, 2, 3];
+      for (let i = 3; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      const shuffledOpts = indices.map(i => q.opts[i]);
+      currentCorrect = indices.indexOf(q.correct);
+
+      // render options
+      const opts = document.getElementById('options');
+      opts.innerHTML = '';
+      const letters = ['A', 'B', 'C', 'D'];
+      shuffledOpts.forEach((text, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.innerHTML = `<span class="letter">${letters[i]}</span><span>${text}</span>`;
+        btn.addEventListener('click', () => selectAnswer(i));
+        opts.appendChild(btn);
+      });
+
+      startTimer();
+    }
+
+    function selectAnswer(selected) {
+      if (answered) return;
+      answered = true;
+      clearInterval(timerId);
+
+      const q = QUESTIONS[qIndex];
+      const opts = document.querySelectorAll('.opt');
+      opts.forEach(b => b.disabled = true);
+
+      if (selected === currentCorrect) {
+        opts[selected].classList.add('correct');
+        const bonus = Math.round(timeLeft / TIME_PER_Q * 50) + 50;
+        score   += bonus;
+        correct += 1;
+        timeSaved += timeLeft;
+        progress = Math.min(100, progress + Math.round(100 / TOTAL_Q));
+        updateProgress();
+        bumpRacer();
+        showFeedback('ok', `✅ Correct! +${bonus} pts`);
+        document.getElementById('score-val').textContent = score;
+        cardFlash('ok');
+      } else {
+        opts[selected].classList.add('wrong');
+        opts[currentCorrect].classList.add('correct');
+        loseLife();
+        showFeedback('err', '❌ Wrong — the correct answer is highlighted in green');
+        shakeRacer();
+        cardFlash('err');
+        if (lives <= 0) { setTimeout(showGameOver, 1200); return; }
+      }
+
+      qIndex++;
+      setTimeout(loadQuestion, 1400);
+    }
+
+    /* ── TIMER ── */
+    function startTimer() {
+      timeLeft = TIME_PER_Q;
+      updateTimerBar();
+      timerId = setInterval(() => {
+        timeLeft--;
+        updateTimerBar();
+        if (timeLeft <= 0) {
+          clearInterval(timerId);
+          if (!answered) {
+            answered = true;
+            const opts = document.querySelectorAll('.opt');
+            opts.forEach(b => b.disabled = true);
+            opts[currentCorrect].classList.add('correct');
+            loseLife();
+            showFeedback('err', "⏰ Time's up! You lost a life");
+            shakeRacer();
+            if (lives <= 0) { setTimeout(showGameOver, 1200); return; }
+            qIndex++;
+            setTimeout(loadQuestion, 1400);
+          }
+        }
+      }, 1000);
+    }
+
+    function updateTimerBar() {
+      const bar = document.getElementById('timer-bar');
+      const pct = (timeLeft / TIME_PER_Q) * 100;
+      bar.style.width = pct + '%';
+      bar.style.background =
+        pct > 50 ? '#22c55e' :
+        pct > 25 ? '#fbbf24' : '#ef4444';
+      document.getElementById('timer-text').textContent = timeLeft + 's';
+    }
+
+    /* ── LIVES ── */
+    function loseLife() {
+      lives--;
+      const lostId = `life-${3 - lives}`;
+      const el = document.getElementById(lostId);
+      if (el) el.classList.add('lost');
+    }
+
+    /* ── RACER ── */
+    function updateProgress() {
+      document.getElementById('track-fill').style.width = progress + '%';
+      document.getElementById('pct-label').textContent  = progress + '%';
+      const racer = document.getElementById('racer');
+      const clamped = Math.max(4, Math.min(96, progress));
+      racer.style.left = clamped + '%';
+    }
+
+    function bumpRacer() {
+      const r = document.getElementById('racer');
+      r.classList.remove('bump', 'shake');
+      void r.offsetWidth;
+      r.classList.add('bump');
+    }
+
+    function shakeRacer() {
+      const r = document.getElementById('racer');
+      r.classList.remove('bump', 'shake');
+      void r.offsetWidth;
+      r.classList.add('shake');
+    }
+
+    /* ── FEEDBACK ── */
+    function showFeedback(type, msg) {
+      const fb = document.getElementById('feedback');
+      fb.textContent = msg;
+      fb.className = `feedback ${type}`;
+    }
+
+    function cardFlash(type) {
+      const card = document.getElementById('q-card');
+      card.classList.remove('flash-ok', 'flash-err');
+      void card.offsetWidth;
+      card.classList.add(type === 'ok' ? 'flash-ok' : 'flash-err');
+    }
+
+    /* ── WIN SCREEN ── */
+    async function showWin() {
+      progress = 100;
+      updateProgress();
+      spawnConfetti();
+
+      document.getElementById('win-name').textContent    = player;
+      document.getElementById('win-score').textContent   = score;
+      document.getElementById('win-correct').textContent = `${correct}/10`;
+      document.getElementById('win-lives').textContent   = '❤️'.repeat(lives) || '💀';
+      document.getElementById('win-time').textContent    = timeSaved + 's';
+
+      document.getElementById('win-screen').classList.add('show');
+
+      try {
+        await fetch('/api/scores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player, score, correct, lives })
+        });
+        const res = await fetch('/api/scores');
+        const rows = await res.json();
+        renderLeaderboard(rows);
+      } catch {
+        document.getElementById('scores-list').innerHTML =
+          '<p class="lb-msg">Could not connect to the scores API.</p>';
+      }
+    }
+
+    function renderLeaderboard(rows) {
+      const list = document.getElementById('scores-list');
+      if (!rows.length) { list.innerHTML = '<p class="lb-msg">No scores yet.</p>'; return; }
+
+      const medals = ['🥈', '🥇', '🥉'];
+      // reorder for podium: 2nd | 1st | 3rd
+      const order = [1, 0, 2];
+
+      const podiumOrder = [rows[1], rows[0], rows[2]];
+
+      list.innerHTML = `<div class="lb-podium">${
+        podiumOrder.filter(Boolean).map((r, podiumI) => {
+          const realIndex = order[podiumI];
+          const isMe = r.player === player && Number(r.score) === score;
+          return `
+            <div class="lb-place ${isMe ? 'me' : ''}">
+              <span class="lb-medal">${medals[podiumI]}</span>
+              <span class="lb-name">${r.player}</span>
+              <span class="lb-pts">${r.score} pts</span>
+              <div class="lb-bar"></div>
+            </div>`;
+        }).join('')
+      }</div>`;
+    }
+
+    /* ── GAME OVER ── */
+    function showGameOver() {
+      document.getElementById('go-qnum').textContent    = qIndex;
+      document.getElementById('go-score').textContent   = score;
+      document.getElementById('go-correct').textContent = correct;
+      document.getElementById('gameover-screen').classList.add('show');
+    }
+
+    /* ── CONFETTI ── */
+    function spawnConfetti() {
+      const wrap  = document.getElementById('confetti');
+      const colors = ['#6366f1','#22d3ee','#fbbf24','#22c55e','#f472b6','#f87171'];
+      for (let i = 0; i < 80; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.style.left            = Math.random() * 100 + 'vw';
+        el.style.background      = colors[Math.floor(Math.random() * colors.length)];
+        el.style.animationDuration = (2 + Math.random() * 3) + 's';
+        el.style.animationDelay  = (Math.random() * 1.5) + 's';
+        el.style.borderRadius    = Math.random() > .5 ? '50%' : '2px';
+        wrap.appendChild(el);
+      }
+    }
+
+    /* ── NAVIGATION ── */
+    function restart() { window.location.reload(); }
+    function goHome()   { window.location.href = 'index.html'; }
+  </script>
+</body>
+</html>

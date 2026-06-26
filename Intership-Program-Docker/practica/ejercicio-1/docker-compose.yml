@@ -1,0 +1,54 @@
+services:
+
+  # ── Servicio 1: Web (Nginx) ──────────────────────────────────────────────
+  web:
+    build: ./web          # construye la imagen desde web/Dockerfile
+    ports:
+      - "8080:80"         # localhost:8080 → puerto 80 del contenedor
+    depends_on:
+      - db                # espera a que el servicio db exista antes de arrancar
+    networks:
+      - app-network
+
+  # ── Servicio 2: API (Node.js) ────────────────────────────────────────────
+  api:
+    build: ./api          # construye la imagen desde api/Dockerfile
+    expose:
+      - "3000"            # solo visible dentro de la red Docker (Nginx hace proxy)
+    environment:
+      DB_HOST:     db
+      DB_NAME:     internrace
+      DB_USER:     intern
+      DB_PASSWORD: docker123
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  # ── Servicio 3: Base de datos (PostgreSQL) ───────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       internrace
+      POSTGRES_USER:     intern
+      POSTGRES_PASSWORD: docker123
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data   # persiste datos en el host
+    networks:
+      - app-network
+    # sin 'ports': no expone nada al host
+
+  # ── Servicio 4: Gestor de base de datos (Adminer) ────────────────────────
+  adminer:
+    image: adminer
+    ports:
+      - "8081:8080"       # localhost:8081 → puerto 8080 del contenedor
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+# ── Red compartida ────────────────────────────────────────────────────────
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docker Compose Demo</title>
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      border: 1px solid rgba(99,102,241,.3);
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    h1 { color: #f1f5f9; font-size: 2rem; margin-bottom: 8px; }
+    p  { color: #94a3b8; margin-bottom: 28px; }
+    .services {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .service {
+      background: rgba(99,102,241,.1);
+      border: 1px solid rgba(99,102,241,.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: #a5b4fc;
+      font-weight: 600;
+      font-size: .9rem;
+    }
+    .service span { display: block; font-size: 1.6rem; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🐳 Docker Compose</h1>
+    <p>Tres servicios levantados con un solo comando</p>
+    <div class="services">
+      <div class="service"><span>🌐</span>Web<br><small>:8080</small></div>
+      <div class="service"><span>🗄️</span>Base de datos<br><small>PostgreSQL</small></div>
+      <div class="service"><span>🛠️</span>Gestor<br><small>:8081</small></div>
+    </div>
+  </div>
+</body>
+</html>
